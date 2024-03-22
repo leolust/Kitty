@@ -42,7 +42,7 @@ class testCog(commands.Cog):
 class MyBot(commands.Bot):
     def __init__(self) -> None:
         super().__init__(command_prefix="!", intents=discord.Intents.all())
-        #Mettre " " comme prefix pour desactiver les commandes prefix
+        #Mettre " " comme prefix pour desactiver les commandes prefix 
 
     async def setup_hook(self) -> None:
         await self.add_cog(testCog(self), guild=discord.Object(id=serv_id))
