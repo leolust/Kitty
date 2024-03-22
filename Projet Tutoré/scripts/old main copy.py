@@ -32,4 +32,4 @@ async def echo(ctx : commands.Context, i : int, *, message : str):
         await ctx.send(message)
 
 if __name__ == "__main__":
-    bot.run("MTIxMDk2NTUyOTQ0NDA5Mzk4Mw.G8J3kb.7K-muQhwLM-ddx6XUT-VzmkAB5UmabNql_fBJs")
+    bot.run("")
