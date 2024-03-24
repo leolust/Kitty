@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands
-from discord import app_commands
+import aiosqlite
 
 from dotenv import load_dotenv
 import os
@@ -8,61 +8,68 @@ load_dotenv()
 token = os.getenv("BOT_TOKEN")
 serv_id = os.getenv("SERV_ID")
 
-# Un cog est une class qui contient un ensemble de commande
-# Utilisé pour organiser le code et regrouper les fonctionnalités qui vont ensemble
+async def create_table_Kitty(connection : aiosqlite.Connection) -> None:
+    await connection.execute("""
+    CREATE TABLE IF NOT EXISTS kitty (
+    id INTEGER PRIMARY KEY,
+    name TEXT UNIQUE,
+    funds REAL DEFAULT 0,
+    creatorName VARCHAR(35)
+    )
+    """)
+    await connection.commit()
 
-class testCog(commands.Cog):
-    def __init__(self, bot : commands.Bot) -> None:
-        self.bot = bot
+async def create_table_Share(connection : aiosqlite.Connection) -> None:
+    await connection.execute("""
+    CREATE TABLE IF NOT EXISTS share (
+    idKitty INTEGER,
+    pseudo VARCHAR(40),
+    amount REAL,
+    PRIMARY KEY (idKitty, pseudo),
+    FOREIGN KEY (idKitty) REFERENCES kitty(id) ON DELETE CASCADE
+    )
+    """)
+    await connection.commit()
 
-    @commands.Cog.listener(name="on_ready")
-    async def printReady(self) -> None:
-        print("Cog de test")
 
-    @commands.command(name="test")
-    async def test_command(self, ctx : commands.Context) -> discord.Message:
-        return await ctx.send(f"Le test de {ctx.author} marche bien !")
+async def create_table_Purchase(connection : aiosqlite.Connection) -> None:
+    await connection.execute("""
+    CREATE TABLE IF NOT EXISTS purchase (
+    idPurchase INTEGER PRIMARY KEY,
+    idKitty INTEGER,
+    pseudo VARCHAR(40),
+    amount REAL,
+    object TEXT,
+    FOREIGN KEY (idKitty) REFERENCES kitty(id) ON DELETE CASCADE,
+    FOREIGN KEY (pseudo) REFERENCES share(pseudo) ON DELETE CASCADE           
+    )
+    """)
+    await connection.commit()
 
-    @commands.command(name="pgcd")
-    async def pgcd(self, ctx : commands.Context, a : int, b : int) -> discord.Message:
-        while b:
-            a, b = b, a % b
-        return await ctx.send(str(a))
-
-    @commands.command(name="echo")
-    async def echo(self, ctx : commands.Context, i : int, *, message : str) -> discord.Message: 
-        # *, sers à récupérer toute la chaine qui suis sans avoir besoin de la mettre entre guillemets
-        for _ in range(i):
-            await ctx.send(message)
-
-    @app_commands.command(name="slash_cog", description="Ma première commande Slash")
-    async def commande(self, interaction : discord.Interaction):
-        return await interaction.response.send_message("Ma première commande Slash")
+async def create_table_DB(connection : aiosqlite.Connection) -> None:
+    await create_table_Kitty(connection)
+    await create_table_Share(connection)
+    await create_table_Purchase(connection)
 
 class MyBot(commands.Bot):
     def __init__(self) -> None:
         super().__init__(command_prefix="!", intents=discord.Intents.all())
-        #Mettre " " comme prefix pour desactiver les commandes prefix 
 
     async def setup_hook(self) -> None:
-        await self.add_cog(testCog(self), guild=discord.Object(id=serv_id))
+        await self.load_extension("plugins.testCog")
+        await self.load_extension("plugins.DB")
         await self.tree.sync(guild=discord.Object(id=serv_id))
+        self.connection = await aiosqlite.connect('Kitty.db')
+        await create_table_DB(self.connection)
 
     async def on_ready(self) -> None:
         print(self.user.name, "est en ligne !")
 
-
+    async def on_shutdown(self):
+        await self.connection.close()
+        print("Connexion à la base de données fermée.")
 
 bot = MyBot()
-
-@bot.event
-async def on_message(message : discord.Message):
-    if message.author.bot:
-        return
-    message.content = message.content.lower()
-    if "ouais ouais ouais" in message.content:
-        await message.channel.send("OUAIS OUAIS OUAIS !")
-    await bot.process_commands(message)
 
 if __name__ == "__main__":
     bot.run(token)
