@@ -56,7 +56,6 @@ class MyBot(commands.Bot):
         super().__init__(command_prefix="!", intents=discord.Intents.all())
 
     async def setup_hook(self) -> None:
-        await self.load_extension("plugins.testCog")
         await self.load_extension("plugins.DB")
         await self.tree.sync(guild=discord.Object(id=serv_id))
         self.connection = await aiosqlite.connect('Kitty.db')
