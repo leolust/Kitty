@@ -14,7 +14,8 @@ async def create_table_Kitty(connection : aiosqlite.Connection) -> None:
     id INTEGER PRIMARY KEY,
     name TEXT UNIQUE,
     funds REAL DEFAULT 0,
-    creatorName VARCHAR(35)
+    creatorName VARCHAR(35),
+    CHECK (funds >= 0)
     )
     """)
     await connection.commit()
@@ -25,6 +26,7 @@ async def create_table_Share(connection : aiosqlite.Connection) -> None:
     idKitty INTEGER,
     pseudo VARCHAR(40),
     amount REAL,
+    CHECK (amount >= 0),
     PRIMARY KEY (idKitty, pseudo),
     FOREIGN KEY (idKitty) REFERENCES kitty(id) ON DELETE CASCADE
     )
@@ -40,6 +42,7 @@ async def create_table_Purchase(connection : aiosqlite.Connection) -> None:
     pseudo VARCHAR(40),
     amount REAL,
     object TEXT,
+    CHECK (amount >= 0),
     FOREIGN KEY (idKitty) REFERENCES kitty(id) ON DELETE CASCADE,
     FOREIGN KEY (pseudo) REFERENCES share(pseudo) ON DELETE CASCADE           
     )
