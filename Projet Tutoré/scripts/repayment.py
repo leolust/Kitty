@@ -24,30 +24,31 @@ def calculate_real_contrib(rest, sorted_contrib):
             sorted_contrib[contributor] -= saving
     return sorted_contrib
 
-def minimize_transactions(real_expenses):
+def calculate_transactions(real_expenses):
+    # Trie des dépenses réelles 
     sorted_transactions = sorted(real_expenses.items(), key=lambda x: x[1])
-
+    print("Sorted transactions:")
+    print(sorted_transactions)
     transactions = []
-
     i = 0
     j = len(sorted_transactions) - 1
-
     while i < j:
-        debtor, debtor_amount = sorted_transactions[i]
-        creditor, creditor_amount = sorted_transactions[j]
-
-        transaction_amount = min(-debtor_amount, creditor_amount)
-
-        transactions.append((debtor, creditor, round(transaction_amount, 2)))
-
-        sorted_transactions[i] = (debtor, round(debtor_amount + transaction_amount, 2))
-        sorted_transactions[j] = (creditor, round(creditor_amount - transaction_amount, 2))
-
-        if sorted_transactions[i][1] == 0:
+        print("e")
+        creditor, creditor_amount = sorted_transactions[i]
+        debtor, debtor_amount = sorted_transactions[j]
+        # Calcul du dû
+        due = min(-creditor_amount, debtor_amount)
+        # Ajout d'une transaction à la liste des transactions finale
+        transactions.append((debtor, creditor, round(due, 2)))
+        # Retrait du montant de la transaction
+        sorted_transactions[i] = (creditor, round(creditor_amount + due, 2))
+        sorted_transactions[j] = (debtor, round(debtor_amount - due, 2))
+        # Si une personne est remboursée, on passe à la suivante
+        if sorted_transactions[i][1] == 0: 
             i += 1
+        # Si une personne a remboursé sa dette, on passe à la suivante
         if sorted_transactions[j][1] == 0:
             j -= 1
-
     return transactions
 
 def repayment(contributions, expenses):
@@ -60,16 +61,4 @@ def repayment(contributions, expenses):
     real_expenses = {k: real_contrib.get(k, 0) - expenses.get(k, 0) for k in set(real_contrib) | set(expenses)}
     print(real_expenses)
     # Calculer les transactions
-    transactions = minimize_transactions(real_expenses)
-    return transactions
-
-# Test de la fonction
-contributions = {'A': 10, 'B': 8, 'C': 10, 'D': 10.55, 'E': 9.45, 'F': 15, 'G': 15, 'H': 22} # 100
-expenses = {'D': 43, 'F': 7, 'A': 30, 'H': 10}                                               #  90
-
-test = repayment(contributions, expenses)
-print("\nresultat:")
-print(test)
-#print(sum(test.values()))
-for debtor, creditor, amount in test:
-    print(f"{debtor} rembourse {amount} à {creditor}")
+    return calculate_transactions(real_expenses)

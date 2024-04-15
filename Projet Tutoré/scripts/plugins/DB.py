@@ -4,6 +4,8 @@ from discord import app_commands
 import aiosqlite
 import sqlite3
 
+import repayment
+
 from dotenv import load_dotenv
 import os
 load_dotenv()
@@ -19,7 +21,7 @@ class DB(commands.Cog):
         print("Cog de la BDD")
 
     @app_commands.command(name="createkitty", description="creates a kitty")
-    async def createKitty(self, interaction : discord.Interaction, kitty_name : str) -> discord.Message:
+    async def createKitty(self, interaction : discord.Interaction, kitty_name : str) -> discord.message:
         cursor = await self.connection.execute("SELECT id FROM kitty WHERE name=?", (kitty_name,))
         id = await cursor.fetchone()
         if id is not None:
@@ -32,7 +34,7 @@ class DB(commands.Cog):
         return await interaction.response.send_message(f"La cagnotte \"{kitty_name}\" à été créé par {interaction.user.name}")
     
     @app_commands.command(name="participate", description="Register your participation for a kitty")
-    async def participate(self, interaction : discord.Interaction, kitty_name : str, amount : float) -> discord.Message:
+    async def participate(self, interaction : discord.Interaction, kitty_name : str, amount : float) -> discord.message:
         amount = round(amount, 2)
         cursor = await self.connection.execute("SELECT id FROM kitty WHERE name=?", (kitty_name,))
         idKitty = await cursor.fetchone()
@@ -61,7 +63,7 @@ class DB(commands.Cog):
         return await interaction.response.send_message(f"Votre participation à la cagnotte \"{kitty_name}\" est de {amount} euros")
 
     @app_commands.command(name="purchase", description="Add a purchase for a kitty")
-    async def purchase(self, interaction : discord.Interaction, kitty_name : str, object : str, amount : float) -> discord.Message:
+    async def purchase(self, interaction : discord.Interaction, kitty_name : str, object : str, amount : float) -> discord.message:
         amount = round(amount, 2)
         if amount == 0:
             return await interaction.response.send_message("Action Impossible, vérifez la cohérence de votre commande (exemple: fonds insuffisant, montant invalide...)")
@@ -82,6 +84,31 @@ class DB(commands.Cog):
         except sqlite3.IntegrityError as e:
             return await interaction.response.send_message("Action Impossible, vérifez la cohérence de votre commande (exemple: fonds insuffisant, montant invalide...)")
         return await interaction.response.send_message(f"{interaction.user.name} a dépensé {amount} euros pour l'achat de \"{object}\" pour la cagnotte \"{kitty_name}\"")
+
+    @app_commands.command(name="calculate", description="Calculate the transactions")
+    async def calculate(self, interaction : discord.Interaction, kitty_name : str) -> discord.message:
+        cursor = await self.connection.execute("SELECT id FROM kitty WHERE name=?", (kitty_name,))
+        idKitty = await cursor.fetchone()
+        if idKitty is None: # Si la cagnotte n'existe pas on s'arrete
+            return await interaction.response.send_message(f"La cagnotte \"{kitty_name}\" n'existe pas")
+        # Récupérer les contributions depuis la table share
+        cursor = await self.connection.execute("SELECT pseudo, amount FROM share WHERE idKitty=?", idKitty)
+        BDDcontrib = await cursor.fetchall()
+        if BDDcontrib is None:
+            return await interaction.response.send_message(f"La cagnotte \"{kitty_name}\" ne contient pas de participations")
+        # Récupérer les dépenses depuis la table purchase
+        cursor = await self.connection.execute("SELECT pseudo, amount FROM purchase WHERE idKitty=?", idKitty)
+        BDDexpenses = await cursor.fetchall()
+        if BDDcontrib is None:
+            return await interaction.response.send_message(f"La cagnotte \"{kitty_name}\" ne contient pas d'achats")
+        # Formatter les données sous forme de dictionnaires
+        contributions = {pseudo: amount for pseudo, amount in BDDcontrib}
+        expenses = {pseudo: amount for pseudo, amount in BDDexpenses}
+        # Calculer les transactions
+        repayments = repayment.repayment(contributions, expenses)
+        # Afficher les transactions
+        res = "\n".join([f"{debtor} doit rembourser {amount} euros à {creditor}" for debtor, creditor, amount in repayments])
+        return await interaction.response.send_message(f"Voici les transactions à effectuer pour la cagnotte \"{kitty_name}\" \n {res}")
 
 async def setup(bot : commands.Bot) -> None:
         await bot.add_cog(DB(bot, await aiosqlite.connect('Kitty.db')), guild=discord.Object(id=serv_id))
