@@ -29,10 +29,11 @@ class DB(commands.Cog):
         """, (kitty_name, interaction.user.name)
         )
         await self.connection.commit()
-        return await interaction.response.send_message(f"La cagnotte \"{kitty_name}\" à été créé ")
+        return await interaction.response.send_message(f"La cagnotte \"{kitty_name}\" à été créé par {interaction.user.name}")
     
     @app_commands.command(name="participate", description="Register your participation for a kitty")
     async def participate(self, interaction : discord.Interaction, kitty_name : str, amount : float) -> discord.Message:
+        amount = round(amount, 2)
         cursor = await self.connection.execute("SELECT id FROM kitty WHERE name=?", (kitty_name,))
         idKitty = await cursor.fetchone()
         if idKitty is None: # Si la cagnotte n'existe pas on s'arrete
@@ -60,57 +61,27 @@ class DB(commands.Cog):
         return await interaction.response.send_message(f"Votre participation à la cagnotte \"{kitty_name}\" est de {amount} euros")
 
     @app_commands.command(name="purchase", description="Add a purchase for a kitty")
-    async def participate(self, interaction : discord.Interaction, kitty_name : str, object : str, amount : float) -> discord.Message:
+    async def purchase(self, interaction : discord.Interaction, kitty_name : str, object : str, amount : float) -> discord.Message:
+        amount = round(amount, 2)
+        if amount == 0:
+            return await interaction.response.send_message("Action Impossible, vérifez la cohérence de votre commande (exemple: fonds insuffisant, montant invalide...)")
         cursor = await self.connection.execute("SELECT id FROM kitty WHERE name=?", (kitty_name,))
         idKitty = await cursor.fetchone()
         if idKitty is None: # Si la cagnotte n'existe pas on s'arrete
             return await interaction.response.send_message(f"La cagnotte \"{kitty_name}\" n'existe pas")
         try:
+            # Insertion de l'achat
+            await self.connection.execute("""
+            INSERT INTO purchase (idKitty, pseudo, amount, object) VALUES (?, ?, ?, ?)
+            """, (idKitty[0], interaction.user.name, amount, object))
+            await self.connection.commit()
             # Mise à jour de la cagnotte
             await self.connection.execute("""
             UPDATE kitty SET funds = funds - ? WHERE id = ?
             """, (amount, idKitty[0]))
-            # Insertion de l'achat
-            await self.connection.execute("""
-            INSERT INTO purchase (idKitty, pseudo, amount, object) VALUES (?, ?, ?, ?)
-            """, (idKitty, interaction.user.name, amount, object))
-            await self.connection.commit()
         except sqlite3.IntegrityError as e:
-            return await interaction.response.send_message("Action Impossible, vérifez la cohérence de votre commande (exemple: fonds insuffisant)")
-        return await interaction.response.send_message(f"Votre participation à la cagnotte \"{kitty_name}\" est de {amount} euros")
-
-
-#########################################################################################################################
-#########################################################################################################################    
-#########################################################################################################################
-
-    @app_commands.command(name="showkitty", description="Affiche le contenu de la table kitty")
-    async def showKitty(self, interaction: discord.Interaction) -> discord.Message:
-        cursor = await self.connection.execute("SELECT * FROM kitty")
-        rows = await cursor.fetchall()
-        result_str = ""
-        for row in rows:
-            result_str += f"ID: {row[0]}, Name: {row[1]}, Funds: {row[2]}, Creator: {row[3]}\n"
-        await interaction.response.send_message(f"Contenu de la table kitty:\n{result_str}")
-
-    @app_commands.command(name='showshares', description='affiche le contenue de la table share')
-    async def showshares(self, interaction: discord.Interaction) -> discord.Message:
-        cursor = await self.connection.execute("SELECT * FROM share")
-        rows = await cursor.fetchall()
-        result_str = ""
-        for row in rows:
-            result_str += f"IdKitty: {row[0]}, Pseudo: {row[1]}, Amount: {row[2]}\n"
-        await interaction.response.send_message(f"Contenu de la table share:\n{result_str}")
-
-    @app_commands.command(name='showpurchase', description='affiche le contenue de la table purchase')
-    async def view_purchases(self, interaction: discord.Interaction) -> discord.Message:
-        cursor = await self.connection.execute("SELECT * FROM purchase")
-        rows = await cursor.fetchall()
-        result_str = ""
-        for row in rows:
-            result_str += f"IdPurchase: {row[0]}, IdKitty: {row[1]}, Pseudo: {row[2]}, Amount: {row[3]}, Object: {row[4]}\n"
-        await interaction.response.send_message(f"Contenu de la table purchase:\n{result_str}")
-
+            return await interaction.response.send_message("Action Impossible, vérifez la cohérence de votre commande (exemple: fonds insuffisant, montant invalide...)")
+        return await interaction.response.send_message(f"{interaction.user.name} a dépensé {amount} euros pour l'achat de \"{object}\" pour la cagnotte \"{kitty_name}\"")
 
 async def setup(bot : commands.Bot) -> None:
         await bot.add_cog(DB(bot, await aiosqlite.connect('Kitty.db')), guild=discord.Object(id=serv_id))

@@ -60,6 +60,7 @@ class MyBot(commands.Bot):
 
     async def setup_hook(self) -> None:
         await self.load_extension("plugins.DB")
+        await self.load_extension("plugins.DB_temp")
         await self.tree.sync(guild=discord.Object(id=serv_id))
         self.connection = await aiosqlite.connect('Kitty.db')
         await create_table_DB(self.connection)
