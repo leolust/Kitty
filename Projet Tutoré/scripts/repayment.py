@@ -27,13 +27,10 @@ def calculate_real_contrib(rest, sorted_contrib):
 def calculate_transactions(real_expenses):
     # Trie des dépenses réelles 
     sorted_transactions = sorted(real_expenses.items(), key=lambda x: x[1])
-    print("Sorted transactions:")
-    print(sorted_transactions)
     transactions = []
     i = 0
     j = len(sorted_transactions) - 1
     while i < j:
-        print("e")
         creditor, creditor_amount = sorted_transactions[i]
         debtor, debtor_amount = sorted_transactions[j]
         # Calcul du dû
@@ -56,9 +53,7 @@ def repayment(contributions, expenses):
     sorted_contrib = dict(sorted(contributions.items(), key=lambda item: item[1], reverse=True))
     # Calculer les contributions réelles
     real_contrib = calculate_real_contrib(sum(contributions.values()) - sum(expenses.values()), sorted_contrib)
-    print(real_contrib)
     # Calculer les dettes
     real_expenses = {k: real_contrib.get(k, 0) - expenses.get(k, 0) for k in set(real_contrib) | set(expenses)}
-    print(real_expenses)
     # Calculer les transactions
     return calculate_transactions(real_expenses)

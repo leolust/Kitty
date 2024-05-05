@@ -18,17 +18,17 @@ class DB_temp(commands.Cog):
     async def printReady(self) -> None:
         print("Cog temporaire pour afficher la BDD")
 
-    @app_commands.command(name="showkitty", description="Affiche le contenu de la table kitty")
-    async def showKitty(self, interaction: discord.Interaction) -> discord.Message:
+    @app_commands.command(name="tablekitty", description="Affiche le contenu de la table kitty")
+    async def table_Kitty(self, interaction: discord.Interaction) -> discord.Message:
         cursor = await self.connection.execute("SELECT * FROM kitty")
         rows = await cursor.fetchall()
         result_str = ""
         for row in rows:
-            result_str += f"ID: {row[0]}, Name: {row[1]}, Funds: {row[2]}, Creator: {row[3]}\n"
+            result_str += f"ID: {row[0]}, Name: {row[1]}, Funds: {row[2]}, Creator: {row[3]}, Channel: {row[4]}\n"
         await interaction.response.send_message(f"Contenu de la table kitty:\n{result_str}")
 
-    @app_commands.command(name='showshares', description='affiche le contenue de la table share')
-    async def showshares(self, interaction: discord.Interaction) -> discord.Message:
+    @app_commands.command(name='tableshares', description='affiche le contenue de la table share')
+    async def table_shares(self, interaction: discord.Interaction) -> discord.Message:
         cursor = await self.connection.execute("SELECT * FROM share")
         rows = await cursor.fetchall()
         result_str = ""
@@ -36,8 +36,8 @@ class DB_temp(commands.Cog):
             result_str += f"IdKitty: {row[0]}, Pseudo: {row[1]}, Amount: {row[2]}\n"
         await interaction.response.send_message(f"Contenu de la table share:\n{result_str}")
 
-    @app_commands.command(name='showpurchase', description='affiche le contenue de la table purchase')
-    async def view_purchases(self, interaction: discord.Interaction) -> discord.Message:
+    @app_commands.command(name='tablepurchase', description='affiche le contenue de la table purchase')
+    async def table_purchases(self, interaction: discord.Interaction) -> discord.Message:
         cursor = await self.connection.execute("SELECT * FROM purchase")
         rows = await cursor.fetchall()
         result_str = ""

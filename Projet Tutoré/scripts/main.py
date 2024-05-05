@@ -12,10 +12,12 @@ async def create_table_Kitty(connection : aiosqlite.Connection) -> None:
     await connection.execute("""
     CREATE TABLE IF NOT EXISTS kitty (
     id INTEGER PRIMARY KEY,
-    name TEXT UNIQUE,
+    name TEXT,
     funds REAL DEFAULT 0,
     creatorName VARCHAR(35),
-    CHECK (funds >= 0)
+    channelName VARCHAR(100),
+    CHECK (funds >= 0),
+    UNIQUE (name, channelName)
     )
     """)
     await connection.commit()
