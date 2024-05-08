@@ -18,7 +18,7 @@ async def create_table_Kitty(connection : aiosqlite.Connection) -> None:
     channelName VARCHAR(100),
     CHECK (funds >= 0),
     UNIQUE (name, channelName)
-    )
+    );
     """)
     await connection.commit()
 
@@ -31,7 +31,7 @@ async def create_table_Share(connection : aiosqlite.Connection) -> None:
     CHECK (amount >= 0),
     PRIMARY KEY (idKitty, pseudo),
     FOREIGN KEY (idKitty) REFERENCES kitty(id) ON DELETE CASCADE
-    )
+    );
     """)
     await connection.commit()
 
@@ -47,7 +47,7 @@ async def create_table_Purchase(connection : aiosqlite.Connection) -> None:
     CHECK (amount >= 0),
     FOREIGN KEY (idKitty) REFERENCES kitty(id) ON DELETE CASCADE,
     FOREIGN KEY (pseudo) REFERENCES share(pseudo) ON DELETE CASCADE           
-    )
+    );
     """)
     await connection.commit()
 
@@ -58,7 +58,7 @@ async def create_table_DB(connection : aiosqlite.Connection) -> None:
 
 class MyBot(commands.Bot):
     def __init__(self) -> None:
-        super().__init__(command_prefix="!", intents=discord.Intents.all())
+        super().__init__(command_prefix="", intents=discord.Intents.all())
 
     async def setup_hook(self) -> None:
         await self.load_extension("plugins.DB")
@@ -66,6 +66,8 @@ class MyBot(commands.Bot):
         await self.tree.sync(guild=discord.Object(id=serv_id))
         self.connection = await aiosqlite.connect('Kitty.db')
         await create_table_DB(self.connection)
+        await self.connection.execute("PRAGMA foreign_keys = ON;") # Active les CASCADE
+
 
     async def on_ready(self) -> None:
         print(self.user.name, "est en ligne !")
