@@ -75,6 +75,10 @@ class DB(commands.Cog):
         idKitty = await self.get_kitty_id(kitty_name, interaction.channel.name)
         if idKitty is None: # Si la cagnotte n'existe pas on s'arrete
             return await interaction.response.send_message(f"La cagnotte \"{kitty_name}\" n'existe pas")
+        cursor = await self.connection.execute("SELECT amount FROM share WHERE idKitty=? AND pseudo=?", (idKitty[0], interaction.user.name))
+        isInShare = await cursor.fetchone()
+        if isInShare is None: # Si l'utilisateur ne participe pas à la cagnotte
+            return await interaction.response.send_message("Vous ne pouvez pas dépenser pour une cagnotte si vous n'y participez pas")
         try:
             # Insertion de l'achat
             await self.connection.execute("""
@@ -114,7 +118,7 @@ class DB(commands.Cog):
         res = "\n".join([f"{debtor} doit rembourser {amount} euros à {creditor}" for debtor, creditor, amount in repayments])
         return await interaction.response.send_message(f"Voici les transactions à effectuer pour la cagnotte \"{kitty_name}\" \n {res}")
     
-    ###################################################### KITTYCLOSE ######################################################
+    ###################################################### CLOSE ######################################################
     @app_commands.command(name="kittyclose", description="Close a kitty")
     async def kittyclose(self, interaction : discord.Interaction, kitty_name : str) -> discord.message:
         idKitty = await self.get_kitty_id(kitty_name, interaction.channel.name)
@@ -126,7 +130,10 @@ class DB(commands.Cog):
         if (creator[0] != interaction.user.name):
             return await interaction.response.send_message(f"Vous n'avez pas les droits pour fermer la cagnotte \"{kitty_name}\"")
         # Suppression de la cagnotte
-        await self.connection.execute("DELETE FROM kitty WHERE id = ?", idKitty)
+        rename = str(idKitty[0]) + ":" + interaction.channel.name
+        await self.connection.execute("""
+        UPDATE kitty SET channelName = ? WHERE id = ?
+        """, (rename, idKitty[0]))
         await self.connection.commit()
         return await interaction.response.send_message(f"La cagnotte \"{kitty_name}\" a été fermée")
 
@@ -190,9 +197,9 @@ class DB(commands.Cog):
     ###################################################### KITTYME ######################################################
     @app_commands.command(name="kittyme", description="Show all the kitty you participate in")
     async def kittyme(self, interaction : discord.Interaction) -> discord.message:
-        cursor = await self.connection.execute("SELECT DISTINCT name, channelName FROM kitty JOIN share ON id = idKitty WHERE pseudo = ?", (interaction.user.name,))
+        cursor = await self.connection.execute("SELECT DISTINCT name, channelName FROM kitty JOIN share ON id = idKitty WHERE pseudo = ? AND channelName NOT LIKE '%:%'", (interaction.user.name,))
         kitty_share = await cursor.fetchall()
-        cursor = await self.connection.execute("SELECT name, channelName FROM kitty WHERE creatorName = ?", (interaction.user.name,))
+        cursor = await self.connection.execute("SELECT name, channelName FROM kitty WHERE creatorName = ? AND channelName NOT LIKE '%:%'", (interaction.user.name,))
         kitty_create = await cursor.fetchall()
         # Affichage
         message = f"Vous apparaissez dans les cagnottes suivantes:\n"
