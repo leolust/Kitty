@@ -14,10 +14,11 @@ async def create_table_Kitty(connection : aiosqlite.Connection) -> None:
     id INTEGER PRIMARY KEY,
     name TEXT,
     funds REAL DEFAULT 0,
-    creatorName VARCHAR(35),
+    idCreator INTEGER,
     channelName VARCHAR(100),
     CHECK (funds >= 0),
     UNIQUE (name, channelName)
+    FOREIGN KEY (idCreator) REFERENCES user(id)
     );
     """)
     await connection.commit()
@@ -26,11 +27,12 @@ async def create_table_Share(connection : aiosqlite.Connection) -> None:
     await connection.execute("""
     CREATE TABLE IF NOT EXISTS share (
     idKitty INTEGER,
-    pseudo VARCHAR(35),
+    idUser INTEGER,
     amount REAL,
     CHECK (amount >= 0),
-    PRIMARY KEY (idKitty, pseudo),
+    PRIMARY KEY (idKitty, idUser),
     FOREIGN KEY (idKitty) REFERENCES kitty(id)
+    FOREIGN KEY (idUser) REFERENCES user(id)
     );
     """)
     await connection.commit()
@@ -41,12 +43,22 @@ async def create_table_Purchase(connection : aiosqlite.Connection) -> None:
     CREATE TABLE IF NOT EXISTS purchase (
     idPurchase INTEGER PRIMARY KEY,
     idKitty INTEGER,
-    pseudo VARCHAR(35),
+    idUser INTEGER,
     amount REAL,
     object TEXT,
     CHECK (amount >= 0),
     FOREIGN KEY (idKitty) REFERENCES kitty(id),
-    FOREIGN KEY (pseudo) REFERENCES share(pseudo)       
+    FOREIGN KEY (idUser) REFERENCES user(id)
+    );
+    """)
+    await connection.commit()
+
+async def create_table_User(connection : aiosqlite.Connection) -> None:
+    await connection.execute("""
+    CREATE TABLE IF NOT EXISTS user (
+    id INTEGER PRIMARY KEY,
+    pseudo VARCHAR(35),
+    prefer TEXT
     );
     """)
     await connection.commit()
@@ -55,6 +67,7 @@ async def create_table_DB(connection : aiosqlite.Connection) -> None:
     await create_table_Kitty(connection)
     await create_table_Share(connection)
     await create_table_Purchase(connection)
+    await create_table_User(connection)
 
 class MyBot(commands.Bot):
     def __init__(self) -> None:
