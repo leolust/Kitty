@@ -272,10 +272,19 @@ class DB(commands.Cog):
 
     ###################################################### KITTYCLOSETO ######################################################
     @app_commands.command(name="kittycloseto", description="Add someone to your close friends list")
-    async def kittycloseto(self, interaction : discord.Interaction, friend: discord.Member) -> discord.message:
+    async def kittycloseto(self, interaction : discord.Interaction, friend: discord.Member = None) -> discord.message:
         idUser = await self.get_user_id(interaction.user.name)
         if idUser is None: # Si l'utilisateur n'est pas enregistré
             return await interaction.response.send_message(f"Avant d'utiliser les commandes de ce bot, veuillez vous enregistrer avec la commande /kittyaddme", ephemeral=True)
+        if friend is None:
+            message = f"Voici la liste des personnes que vous avez ajouté en amis proches: \n"
+            cursor = await self.connection.execute("SELECT user2 FROM closeto WHERE user1=?", idUser)
+            friendList = await cursor.fetchall()
+            for friendId in friendList:
+                pseudo = await self.get_user_name(friendId[0])
+                memberPseudo = interaction.guild.get_member_named(pseudo[0])
+                message += f"{memberPseudo.mention if memberPseudo is not None else pseudo[0]}\n"
+            return await interaction.response.send_message(message, ephemeral=True)
         idFriend = await self.get_user_id(friend.name)
         if idFriend is None:
             return await interaction.response.send_message(f"La personne que vous voulez ajouter n'est pas enregistré dans le bot {friend.name}", ephemeral=True)
@@ -299,25 +308,28 @@ class DB(commands.Cog):
     ###################################################### KITTYHELP ######################################################
     @app_commands.command(name="kittyhelp", description="Display help to use the bot")
     async def kittyhelp(self, interaction : discord.Interaction) -> discord.message:
-        message = f"Ce bot permet de créer et gérer des cagnottes grâce aux commandes suivantes:\n"
-        message += f"\n/createkitty [kitty_name]\n"
-        message += f"Permet de créer une cagnotte en lui donnant un nom. Le bot renvoie un message pour confirmer la création de la cagnotte, ou pour indiquer qu’elle n’a pas pu être créer.\n"
-        message += f"\n/participate [kitty_name] [amount]\n"
-        message += f"Permet de participer à un cagnotte en indiquant le nom de la cagnotte et le montant que l’on souhaite. Il est possible de diminuer sa participation en entrant une valeur négative, sauf si l’argent a déjà été dépensée. Le bot renvoie un message pour préciser si la participation a été valider ou invalider.\n"
-        message += f"\n/purchase [kitty_name] [object] [amount]\n"
-        message += f"Permet d’acheter quelque chose pour une cagnotte, en précisant le nom de la cagnotte, l’objet de la dépense ainsi que son montant. Encore une fois le bot renvoie un message de réponse.\n"
-        message += f"\n/calculate [kitty_name]\n"
-        message += f"Permet de calculer et d’afficher les transactions minimum à faire pour que les participant d’un cagnotte donnée se remboursent.\n"
-        message += f"\n/kittydelete [kitty_name]\n"
-        message += f"Permet de fermer une cagnotte donnée. Les données ne sont pas supprimer mais la cagnotte devient inaccessible.\n"
-        message += f"\n/showkitty [kitty_name]\n"
-        message += f"Affiche les informations d’une cagnotte donnée. Son créateur, le total des participations, le total des dépenses, et les fonds restants.\n"
-        message += f"\n/showshares [kitty_name]\n"
-        message += f"Affiche chaque participation à une cagnotte donnée (participant et montant).\n"
-        message += f"\n/showpurchase [kitty_name]\n"
-        message += f"Affiche les achats d’une cagnotte donnée (acheteur, objet et montant).\n"
-        message += f"\n/kittyme\n"
-        message += f"Affiche toutes les cagnottes créer par l’utilisateur, ainsi que toutes les cagnottes auxquelles il a participé (l’utilisateur est le seul à voir la réponse du bot).\n"
+        message = f"# Ce bot permet de créer et gérer des cagnottes #\n" 
+        message += f"Dans un premier temps, enregistrez vous avec la commande: ```/kittyaddme```vous aurez ensuite accès aux commandes suivantes:\n\n"
+        message += f"```/createkitty [kitty_name]```"
+        message += f"Permet de créer une cagnotte en lui donnant un nom. Le bot renvoie un message pour confirmer la création de la cagnotte, ou pour indiquer qu’elle n’a pas pu être créée.\n\n"
+        message += f"```/participate [kitty_name] [amount]```"
+        message += f"Permet de participer à un cagnotte en indiquant le nom de la cagnotte et le montant que l’on souhaite. Il est possible de diminuer sa participation en entrant une valeur négative, sauf si l’argent a déjà été dépensée. Le bot renvoie un message pour préciser si la participation a été validée ou invalidée.\n\n"
+        message += f"```/purchase [kitty_name] [object] [amount]```"
+        message += f"Permet d’ajouter une dépense à une cagnotte, en précisant le nom de la cagnotte, l’objet de la dépense ainsi que son montant. Le bot renvoie un message pour préciser si la dépense a été validée ou invalidée.\n\n"
+        message += f"```/calculate [kitty_name]```"
+        message += f"Permet de calculer et d’afficher les transactions minimum à faire pour que les participant d’un cagnotte donnée se remboursent.\n\n"
+        message += f"```/kittydelete [kitty_name]```"
+        message += f"Permet de supprimer une cagnotte donnée si vous en êtes le créateur.\n\n"
+        message += f"```/showkitty [kitty_name]```"
+        message += f"Affiche les informations d’une cagnotte donnée. Son créateur, le total des participations, le total des dépenses, et les fonds restants.\n\n"
+        message += f"```/showshares [kitty_name]```"
+        message += f"Affiche chaque participation à une cagnotte donnée (participant et montant).\n\n"
+        message += f"```/showpurchase [kitty_name]```"
+        message += f"Affiche les dépenses d’une cagnotte donnée (acheteur, objet et montant).\n\n"
+        message += f"```/kittyme```"
+        message += f"Affiche toutes les cagnottes créée par l’utilisateur, ainsi que toutes les cagnottes auxquelles il a participé (l’utilisateur est le seul à voir la réponse du bot).\n\n"
+        message += f"```/kittycloseto```"
+        message += f"A venir..."
         return await interaction.response.send_message(message, ephemeral=True)
     
 async def setup(bot : commands.Bot) -> None:
