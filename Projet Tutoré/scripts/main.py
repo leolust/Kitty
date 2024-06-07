@@ -63,11 +63,24 @@ async def create_table_User(connection : aiosqlite.Connection) -> None:
     """)
     await connection.commit()
 
+async def create_table_CloseTo(connection : aiosqlite.Connection) -> None:
+    await connection.execute("""
+    CREATE TABLE IF NOT EXISTS closeto (
+    user1 INTEGER,
+    user2 INTEGER,
+    PRIMARY KEY (user1, user2),
+    FOREIGN KEY (user1) REFERENCES user(id),                
+    FOREIGN KEY (user2) REFERENCES user(id)                
+    );
+    """)
+    await connection.commit()
+
 async def create_table_DB(connection : aiosqlite.Connection) -> None:
     await create_table_Kitty(connection)
     await create_table_Share(connection)
     await create_table_Purchase(connection)
     await create_table_User(connection)
+    await create_table_CloseTo(connection)
 
 class MyBot(commands.Bot):
     def __init__(self) -> None:

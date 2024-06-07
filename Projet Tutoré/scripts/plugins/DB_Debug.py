@@ -57,6 +57,31 @@ class DB_temp(commands.Cog):
             result_str += f"IdPurchase: {row[0]}, IdKitty: {row[1]}, Pseudo: {row[2]}, Amount: {row[3]}, Object: {row[4]}\n"
         return await interaction.response.send_message(f"Contenu de la table purchase:\n{result_str}")
 
+    ###################################################### USER ######################################################
+    
+    @app_commands.command(name='tableuser', description='Affiche le contenu de la table user')
+    async def table_user(self, interaction: discord.Interaction) -> discord.Message:
+        if interaction.user.name != my_pseudo:
+            return await interaction.response.send_message("Vous n'avez pas les droits pour cette commande")
+        cursor = await self.connection.execute("SELECT * FROM user")
+        rows = await cursor.fetchall()
+        result_str = ""
+        for row in rows:
+            result_str += f"Id: {row[0]}, Pseudo: {row[1]}, Prefer: {row[2]}\n"
+        return await interaction.response.send_message(f"Contenu de la table user:\n{result_str}", ephemeral=True)
+    
+    ###################################################### CLOSETO ######################################################
+
+    @app_commands.command(name='tablecloseto', description='Affiche le contenu de la table closeto')
+    async def table_closeto(self, interaction: discord.Interaction) -> discord.Message:
+        if interaction.user.name != my_pseudo:
+            return await interaction.response.send_message("Vous n'avez pas les droits pour cette commande")
+        cursor = await self.connection.execute("SELECT * FROM closeto")
+        rows = await cursor.fetchall()
+        result_str = ""
+        for row in rows:
+            result_str += f"User1: {row[0]}, User2: {row[1]}\n"
+        return await interaction.response.send_message(f"Contenu de la table closeto:\n{result_str}", ephemeral=True)
 
 async def setup(bot : commands.Bot) -> None:
         await bot.add_cog(DB_temp(bot, await aiosqlite.connect('Kitty.db')), guild=discord.Object(id=serv_id))

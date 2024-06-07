@@ -59,7 +59,7 @@ class DB(commands.Cog):
         """, (kitty_name, idUser[0], interaction.channel.name)
         )
         await self.connection.commit()
-        return await interaction.response.send_message(f"La cagnotte \"{kitty_name}\" à été créé par {interaction.user.name}")
+        return await interaction.response.send_message(f"La cagnotte \"{kitty_name}\" à été créé par {interaction.user.mention}")
 
     ###################################################### PARTICIPATE ######################################################
     @app_commands.command(name="participate", description="Register your participation for a kitty")
@@ -121,7 +121,7 @@ class DB(commands.Cog):
             await self.connection.commit()
         except sqlite3.IntegrityError as e:
             return await interaction.response.send_message("Action Impossible, vérifez la cohérence de votre commande (exemple: fonds insuffisant)")
-        return await interaction.response.send_message(f"{interaction.user.name} a dépensé {amount} euros de la cagnotte \"{kitty_name}\" pour l'achat de \"{object}\"")
+        return await interaction.response.send_message(f"{interaction.user.mention} a dépensé {amount} euros de la cagnotte \"{kitty_name}\" pour l'achat de \"{object}\"")
 
     ###################################################### CALCULATE ######################################################
     @app_commands.command(name="calculate", description="Calculate the transactions")
@@ -152,12 +152,14 @@ class DB(commands.Cog):
         for idDebtor, idCreditor, amount in repayments:
             debtor = await self.get_user_name(idDebtor)
             creditor = await self.get_user_name(idCreditor)
-            res += f"{debtor[0]} doit rembourser {amount} euros à {creditor[0]}\n"
+            memberDebtor = interaction.guild.get_member_named(debtor[0])
+            memberCreditor = interaction.guild.get_member_named(creditor[0])
+            res += f"{memberDebtor.mention if memberDebtor is not None else debtor[0]} doit rembourser {amount} euros à {memberCreditor.mention if memberCreditor is not None else creditor}\n"
         return await interaction.response.send_message(f"{res}")
     
-    ###################################################### CLOSE ######################################################
-    @app_commands.command(name="kittyclose", description="Close a kitty")
-    async def kittyclose(self, interaction : discord.Interaction, kitty_name : str) -> discord.message:
+    ###################################################### DELETE ######################################################
+    @app_commands.command(name="kittydelete", description="Delete a kitty")
+    async def kittydelete(self, interaction : discord.Interaction, kitty_name : str) -> discord.message:
         idUser = await self.get_user_id(interaction.user.name)
         if idUser is None: # Si l'utilisateur n'est pas enregistré
             return await interaction.response.send_message(f"Avant d'utiliser les commandes de ce bot, veuillez vous enregistrer avec la commande /kittyaddme")
@@ -191,6 +193,7 @@ class DB(commands.Cog):
         kitty_info = await cursor.fetchone()
         # Récupérer le pseudo du créateur
         creator = await self.get_user_name(kitty_info[2])
+        memberCreator = interaction.guild.get_member_named(creator[0])
         # Calculer la participation totale
         cursor = await self.connection.execute("SELECT SUM(amount) FROM share WHERE idKitty = ?", idKitty)
         total_contrib = await cursor.fetchone()
@@ -202,7 +205,7 @@ class DB(commands.Cog):
         # Affichage
         message = (
             f"Résumé de la cagnotte \"{kitty_info[0]}\" :\n"
-            f"- Créateur: {creator[0]}\n"
+            f"- Créateur: {memberCreator.display_name if memberCreator is not None else creator[0]}\n"
             f"- Participation totale: {total_contrib}\n"
             f"- Dépenses totales: {total_expenses}\n"
             f"- Fonds restants: {kitty_info[1]}"
@@ -225,7 +228,8 @@ class DB(commands.Cog):
         message = f"Participations pour la cagnotte \"{kitty_name}\":\n"
         for idUser, amount in share_info:
             pseudo = await self.get_user_name(idUser)
-            message += f"- {pseudo[0]}: {amount}\n"
+            memberPseudo = interaction.guild.get_member_named(pseudo[0])
+            message += f"- {memberPseudo.display_name if memberPseudo is not None else pseudo[0]}: {amount}\n"
         return await interaction.response.send_message(message)
     
     ###################################################### SHOWPURCHASES ######################################################
@@ -244,7 +248,8 @@ class DB(commands.Cog):
         message = f"Achats pour la cagnotte \"{kitty_name}\":\n"
         for idUser, amount, object in purchase_info:
             pseudo = await self.get_user_name(idUser)
-            message += f"- {pseudo[0]}: \"{object}\" à {amount} euros\n"
+            memberPseudo = interaction.guild.get_member_named(pseudo[0])
+            message += f"- {memberPseudo.display_name if memberPseudo is not None else pseudo[0]}: \"{object}\" à {amount} euros\n"
         return await interaction.response.send_message(message) 
     
     ###################################################### KITTYME ######################################################
@@ -252,7 +257,7 @@ class DB(commands.Cog):
     async def kittyme(self, interaction : discord.Interaction) -> discord.message:
         idUser = await self.get_user_id(interaction.user.name)
         if idUser is None: # Si l'utilisateur n'est pas enregistré
-            return await interaction.response.send_message(f"Avant d'utiliser les commandes de ce bot, veuillez vous enregistrer avec la commande /kittyaddme")
+            return await interaction.response.send_message(f"Avant d'utiliser les commandes de ce bot, veuillez vous enregistrer avec la commande /kittyaddme", ephemeral=True)
         cursor = await self.connection.execute("SELECT DISTINCT name, channelName FROM kitty JOIN share ON id = idKitty WHERE idUser = ? AND channelName NOT LIKE '%:%'", idUser)
         kitty_share = await cursor.fetchall()
         cursor = await self.connection.execute("SELECT name, channelName FROM kitty WHERE idCreator = ? AND channelName NOT LIKE '%:%'", idUser)
@@ -265,6 +270,32 @@ class DB(commands.Cog):
             message += f"- Vous participez à la cagnotte \"{name}\" sur le channel \"{channel}\"\n"
         return await interaction.response.send_message(message, ephemeral=True) 
 
+    ###################################################### KITTYCLOSETO ######################################################
+    @app_commands.command(name="kittycloseto", description="Add someone to your close friends list")
+    async def kittycloseto(self, interaction : discord.Interaction, friend: discord.Member) -> discord.message:
+        idUser = await self.get_user_id(interaction.user.name)
+        if idUser is None: # Si l'utilisateur n'est pas enregistré
+            return await interaction.response.send_message(f"Avant d'utiliser les commandes de ce bot, veuillez vous enregistrer avec la commande /kittyaddme", ephemeral=True)
+        idFriend = await self.get_user_id(friend.name)
+        if idFriend is None:
+            return await interaction.response.send_message(f"La personne que vous voulez ajouter n'est pas enregistré dans le bot {friend.name}", ephemeral=True)
+        if idUser == idFriend:
+            return await interaction.response.send_message(f"Impossible de s'ajouter sois-même... (arretez vos bêtises !)", ephemeral=True)
+        cursor = await self.connection.execute("SELECT user1 FROM closeto WHERE user1=? AND user2=?", (idUser[0], idFriend[0]))
+        already = await cursor.fetchone()
+        if already:
+            await self.connection.execute("""
+            DELETE FROM closeto WHERE user1=? AND user2=?
+            """, (idUser[0], idFriend[0]))
+            message = f"{friend.mention} a été retiré de votre liste d'amis proches\n"
+        else:
+            await self.connection.execute("""
+            INSERT INTO closeto VALUES (?, ?)
+            """, (idUser[0], idFriend[0]))
+            message = f"{friend.mention} a été ajouté à votre liste d'amis proches\n"
+        await self.connection.commit()
+        return await interaction.response.send_message(message, ephemeral=True)
+    
     ###################################################### KITTYHELP ######################################################
     @app_commands.command(name="kittyhelp", description="Display help to use the bot")
     async def kittyhelp(self, interaction : discord.Interaction) -> discord.message:
@@ -277,7 +308,7 @@ class DB(commands.Cog):
         message += f"Permet d’acheter quelque chose pour une cagnotte, en précisant le nom de la cagnotte, l’objet de la dépense ainsi que son montant. Encore une fois le bot renvoie un message de réponse.\n"
         message += f"\n/calculate [kitty_name]\n"
         message += f"Permet de calculer et d’afficher les transactions minimum à faire pour que les participant d’un cagnotte donnée se remboursent.\n"
-        message += f"\n/kittyclose [kitty_name]\n"
+        message += f"\n/kittydelete [kitty_name]\n"
         message += f"Permet de fermer une cagnotte donnée. Les données ne sont pas supprimer mais la cagnotte devient inaccessible.\n"
         message += f"\n/showkitty [kitty_name]\n"
         message += f"Affiche les informations d’une cagnotte donnée. Son créateur, le total des participations, le total des dépenses, et les fonds restants.\n"
