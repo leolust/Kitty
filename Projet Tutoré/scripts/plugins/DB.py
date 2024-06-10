@@ -90,7 +90,7 @@ class DB(commands.Cog):
                 """, (idKitty[0], idUser[0], amount))
             await self.connection.commit()
         except sqlite3.IntegrityError as e:
-            return await interaction.response.send_message("Action Impossible, vérifez la cohérence de votre commande (exemple: montant négatif)")
+            return await interaction.response.send_message("Action Impossible, vérifez la cohérence de votre commande (exemple : montant négatif)")
         return await interaction.response.send_message(f"Votre participation totale à la cagnotte \"{kitty_name}\" est de {amount} euros")
 
     ###################################################### PURCHASE ######################################################
@@ -120,7 +120,7 @@ class DB(commands.Cog):
             """, (amount, idKitty[0]))
             await self.connection.commit()
         except sqlite3.IntegrityError as e:
-            return await interaction.response.send_message("Action Impossible, vérifez la cohérence de votre commande (exemple: fonds insuffisant)")
+            return await interaction.response.send_message("Action Impossible, vérifez la cohérence de votre commande (exemple : fonds insuffisant)")
         return await interaction.response.send_message(f"{interaction.user.mention} a dépensé {amount} euros de la cagnotte \"{kitty_name}\" pour l'achat de \"{object}\"")
 
     ###################################################### CALCULATE ######################################################
@@ -205,10 +205,10 @@ class DB(commands.Cog):
         # Affichage
         message = (
             f"Résumé de la cagnotte \"{kitty_info[0]}\" :\n"
-            f"- Créateur: {memberCreator.display_name if memberCreator is not None else creator[0]}\n"
-            f"- Participation totale: {total_contrib}\n"
-            f"- Dépenses totales: {total_expenses}\n"
-            f"- Fonds restants: {kitty_info[1]}"
+            f"- Créateur : {memberCreator.display_name if memberCreator is not None else creator[0]}\n"
+            f"- Participation totale : {total_contrib}\n"
+            f"- Dépenses totales : {total_expenses}\n"
+            f"- Fonds restants : {kitty_info[1]}"
         )
         return await interaction.response.send_message(message)
 
@@ -225,11 +225,11 @@ class DB(commands.Cog):
         cursor = await self.connection.execute("SELECT idUser, amount FROM share WHERE idKitty = ?", idKitty)
         share_info = await cursor.fetchall()
         # Affichage
-        message = f"Participations pour la cagnotte \"{kitty_name}\":\n"
+        message = f"Participations pour la cagnotte \"{kitty_name}\" :\n"
         for idUser, amount in share_info:
             pseudo = await self.get_user_name(idUser)
             memberPseudo = interaction.guild.get_member_named(pseudo[0])
-            message += f"- {memberPseudo.display_name if memberPseudo is not None else pseudo[0]}: {amount}\n"
+            message += f"- {memberPseudo.display_name if memberPseudo is not None else pseudo[0]} : {amount}\n"
         return await interaction.response.send_message(message)
     
     ###################################################### SHOWPURCHASES ######################################################
@@ -263,7 +263,7 @@ class DB(commands.Cog):
         cursor = await self.connection.execute("SELECT name, channelName FROM kitty WHERE idCreator = ? AND channelName NOT LIKE '%:%'", idUser)
         kitty_create = await cursor.fetchall()
         # Affichage
-        message = f"Vous apparaissez dans les cagnottes suivantes:\n"
+        message = f"Vous apparaissez dans les cagnottes suivantes :\n"
         for name, channel in kitty_create:
             message += f"- Vous avez créé la cagnotte \"{name}\" sur le channel \"{channel}\"\n"
         for name, channel in kitty_share:
@@ -277,7 +277,7 @@ class DB(commands.Cog):
         if idUser is None: # Si l'utilisateur n'est pas enregistré
             return await interaction.response.send_message(f"Avant d'utiliser les commandes de ce bot, veuillez vous enregistrer avec la commande /kittyaddme", ephemeral=True)
         if friend is None:
-            message = f"Voici la liste des personnes que vous avez ajouté en amis proches: \n"
+            message = f"Voici la liste des personnes que vous avez ajouté en amis proches : \n"
             cursor = await self.connection.execute("SELECT user2 FROM closeto WHERE user1=?", idUser)
             friendList = await cursor.fetchall()
             for friendId in friendList:
@@ -287,7 +287,7 @@ class DB(commands.Cog):
             return await interaction.response.send_message(message, ephemeral=True)
         idFriend = await self.get_user_id(friend.name)
         if idFriend is None:
-            return await interaction.response.send_message(f"La personne que vous voulez ajouter n'est pas enregistré dans le bot {friend.name}", ephemeral=True)
+            return await interaction.response.send_message(f"La personne que vous voulez ajouter n'est pas enregistrée dans le bot {friend.name}", ephemeral=True)
         if idUser == idFriend:
             return await interaction.response.send_message(f"Impossible de s'ajouter sois-même... (arretez vos bêtises !)", ephemeral=True)
         cursor = await self.connection.execute("SELECT user1 FROM closeto WHERE user1=? AND user2=?", (idUser[0], idFriend[0]))
@@ -309,7 +309,7 @@ class DB(commands.Cog):
     @app_commands.command(name="kittyhelp", description="Display help to use the bot")
     async def kittyhelp(self, interaction : discord.Interaction) -> discord.message:
         message = f"# Ce bot permet de créer et gérer des cagnottes #\n" 
-        message += f"Dans un premier temps, enregistrez vous avec la commande: ```/kittyaddme```vous aurez ensuite accès aux commandes suivantes:\n\n"
+        message += f"Dans un premier temps, enregistrez vous avec la commande : ```/kittyaddme```vous aurez ensuite accès aux commandes suivantes :\n\n"
         message += f"```/createkitty [kitty_name]```"
         message += f"Permet de créer une cagnotte en lui donnant un nom. Le bot renvoie un message pour confirmer la création de la cagnotte, ou pour indiquer qu’elle n’a pas pu être créée.\n\n"
         message += f"```/participate [kitty_name] [amount]```"
