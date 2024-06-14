@@ -3,6 +3,7 @@ from discord.ext import commands
 from discord import app_commands
 import aiosqlite
 import sqlite3
+from collections import defaultdict
 
 import repayment
 
@@ -43,7 +44,7 @@ class DB(commands.Cog):
         """, (interaction.user.name,)
         )
         await self.connection.commit()
-        return await interaction.response.send_message(f"Vous êtes enregistré comme utilisateur de ce bot, vous pouvez désormais utiliser toutes ses fonctionnalitées")
+        return await interaction.response.send_message(f"{interaction.user.mention} vous êtes enregistré comme utilisateur de ce bot, vous pouvez désormais utiliser toutes ses fonctionnalitées")
 
     ###################################################### CREATE ######################################################
     @app_commands.command(name="createkitty", description="creates a kitty")
@@ -59,17 +60,32 @@ class DB(commands.Cog):
         """, (kitty_name, idUser[0], interaction.channel.name)
         )
         await self.connection.commit()
-        return await interaction.response.send_message(f"La cagnotte \"{kitty_name}\" à été créé par {interaction.user.mention}")
+        return await interaction.response.send_message(f"La cagnotte \"{kitty_name}\" à été créée par {interaction.user.mention}")
 
     ###################################################### PARTICIPATE ######################################################
-    @app_commands.command(name="participate", description="Register your participation for a kitty")
-    async def participate(self, interaction : discord.Interaction, kitty_name : str, amount : float) -> discord.message:
+    @app_commands.command(name="participate", description="Register a participation for a kitty")
+    async def participate(self, interaction : discord.Interaction, kitty_name : str, amount : float, other : str = None) -> discord.message:
         idUser = await self.get_user_id(interaction.user.name)
         if idUser is None: # Si l'utilisateur n'est pas enregistré
             return await interaction.response.send_message(f"Avant d'utiliser les commandes de ce bot, veuillez vous enregistrer avec la commande /kittyaddme")
         idKitty = await self.get_kitty_id(kitty_name, interaction.channel.name)
         if idKitty is None: # Si la cagnotte n'existe pas on s'arrete
             return await interaction.response.send_message(f"La cagnotte \"{kitty_name}\" n'existe pas")
+        # Vérification si l'utilisateur est le créateur de la cagnotte
+        cursor = await self.connection.execute("SELECT idCreator FROM kitty WHERE id = ?", (idKitty[0],))
+        addOther = await cursor.fetchone()
+        if other is not None:
+            if addOther[0] != idUser[0]:
+                return await interaction.response.send_message("Vous n'êtes pas le créateur de cette cagnotte, vous ne pouvez pas ajouter de participation exterieure")
+            else:
+                idUser = await self.get_user_id(other)
+                if idUser is None: # Si l'utilisateur n'est pas enregistré
+                    await self.connection.execute("""
+                    INSERT INTO user (pseudo) VALUES (?)
+                    """, (other,))
+                    await self.connection.commit()
+                    idUser = await self.get_user_id(other)
+                addOther = True
         amount = round(amount, 2)
         try:
             # Mise à jour de la cagnotte
@@ -91,11 +107,13 @@ class DB(commands.Cog):
             await self.connection.commit()
         except sqlite3.IntegrityError as e:
             return await interaction.response.send_message("Action Impossible, vérifez la cohérence de votre commande (exemple : montant négatif)")
+        if addOther == True:
+            return await interaction.response.send_message(f"La participation totale de \"{other}\" à la cagnotte \"{kitty_name}\" est de {amount} euros")
         return await interaction.response.send_message(f"Votre participation totale à la cagnotte \"{kitty_name}\" est de {amount} euros")
 
     ###################################################### PURCHASE ######################################################
     @app_commands.command(name="purchase", description="Add a purchase for a kitty")
-    async def purchase(self, interaction : discord.Interaction, kitty_name : str, object : str, amount : float) -> discord.message:
+    async def purchase(self, interaction : discord.Interaction, kitty_name : str, object : str, amount : float, other : str = None) -> discord.message:
         amount = round(amount, 2)
         if amount <= 0:
             return await interaction.response.send_message("Action Impossible: montant invalide")
@@ -105,10 +123,21 @@ class DB(commands.Cog):
         idKitty = await self.get_kitty_id(kitty_name, interaction.channel.name)
         if idKitty is None: # Si la cagnotte n'existe pas on s'arrete
             return await interaction.response.send_message(f"La cagnotte \"{kitty_name}\" n'existe pas")
+        # Vérification si l'utilisateur est le créateur de la cagnotte
+        cursor = await self.connection.execute("SELECT idCreator FROM kitty WHERE id = ?", (idKitty[0],))
+        addOther = await cursor.fetchone()
+        if other is not None:
+            if addOther[0] != idUser[0]:
+                return await interaction.response.send_message("Vous n'êtes pas le créateur de cette cagnotte, vous ne pouvez pas gérer les achats des participants exterieurs")
+            else:
+                idUser = await self.get_user_id(other)
+                if idUser is None: # Si l'utilisateur n'est pas enregistré
+                    return await interaction.response.send_message("Veuillez vérifier que vous entrez bien le pseudo d'un participant")
+                addOther = True
         cursor = await self.connection.execute("SELECT amount FROM share WHERE idKitty=? AND idUser=?", (idKitty[0], idUser[0]))
         isInShare = await cursor.fetchone()
         if isInShare is None: # Si l'utilisateur ne participe pas à la cagnotte
-            return await interaction.response.send_message("Vous ne pouvez pas dépenser pour une cagnotte si vous n'y participez pas")
+            return await interaction.response.send_message("Il est impossible de dépenser pour une cagnotte à laquel nous n'avons pas participé")
         try:
             # Insertion de l'achat
             await self.connection.execute("""
@@ -120,8 +149,8 @@ class DB(commands.Cog):
             """, (amount, idKitty[0]))
             await self.connection.commit()
         except sqlite3.IntegrityError as e:
-            return await interaction.response.send_message("Action Impossible, vérifez la cohérence de votre commande (exemple : fonds insuffisant)")
-        return await interaction.response.send_message(f"{interaction.user.mention} a dépensé {amount} euros de la cagnotte \"{kitty_name}\" pour l'achat de \"{object}\"")
+            return await interaction.response.send_message("Action Impossible, vérifiez la cohérence de votre commande (exemple : fonds insuffisants)")
+        return await interaction.response.send_message(f"{interaction.user.mention if addOther is not True else other} a dépensé {amount} euros de la cagnotte \"{kitty_name}\" pour l'achat de \"{object}\"")
 
     ###################################################### CALCULATE ######################################################
     @app_commands.command(name="calculate", description="Calculate the transactions")
@@ -144,7 +173,9 @@ class DB(commands.Cog):
             return await interaction.response.send_message(f"La cagnotte \"{kitty_name}\" ne contient pas d'achats")
         # Formatter les données sous forme de dictionnaires
         contributions = {pseudo: amount for pseudo, amount in BDDcontrib}
-        expenses = {pseudo: amount for pseudo, amount in BDDexpenses}
+        expenses = defaultdict(float)
+        for pseudo, amount in BDDexpenses:
+            expenses[pseudo] += amount
         # Calculer les transactions
         repayments = repayment.repayment(contributions, expenses)
         # Afficher les transactions
@@ -154,7 +185,7 @@ class DB(commands.Cog):
             creditor = await self.get_user_name(idCreditor)
             memberDebtor = interaction.guild.get_member_named(debtor[0])
             memberCreditor = interaction.guild.get_member_named(creditor[0])
-            res += f"{memberDebtor.mention if memberDebtor is not None else debtor[0]} doit rembourser {amount} euros à {memberCreditor.mention if memberCreditor is not None else creditor}\n"
+            res += f"{memberDebtor.mention if memberDebtor is not None else debtor[0]} doit rembourser {amount} euros à {memberCreditor.mention if memberCreditor is not None else creditor[0]}\n"
         return await interaction.response.send_message(f"{res}")
     
     ###################################################### DELETE ######################################################
