@@ -34,14 +34,14 @@ class DB(commands.Cog):
         return await cursor.fetchone()
     
     ###################################################### ADDME ######################################################
-    @app_commands.command(name="kittyaddme", description="Add you as a kitty user")
-    async def kittyaddme(self, interaction : discord.Interaction) -> discord.message:
+    @app_commands.command(name="kittyaddme", description="Add you as a kitty user (Optionally, add a preferred means of payment)")
+    async def kittyaddme(self, interaction : discord.Interaction, prefer : str = None) -> discord.message:
         idUser = await self.get_user_id(interaction.user.name)
         if idUser is not None:
             return await interaction.response.send_message(f"Vous êtes déjà enregistré")
         await self.connection.execute("""
-        INSERT INTO user (pseudo) VALUES (?)
-        """, (interaction.user.name,)
+        INSERT INTO user (pseudo, prefer) VALUES (?, ?)
+        """, (interaction.user.name, prefer)
         )
         await self.connection.commit()
         return await interaction.response.send_message(f"{interaction.user.mention} vous êtes enregistré comme utilisateur de ce bot, vous pouvez désormais utiliser toutes ses fonctionnalitées")
@@ -185,7 +185,14 @@ class DB(commands.Cog):
             creditor = await self.get_user_name(idCreditor)
             memberDebtor = interaction.guild.get_member_named(debtor[0])
             memberCreditor = interaction.guild.get_member_named(creditor[0])
-            res += f"{memberDebtor.mention if memberDebtor is not None else debtor[0]} doit rembourser {amount} euros à {memberCreditor.mention if memberCreditor is not None else creditor[0]}\n"
+            # Récupérer le moyen de paiement préféré du créditeur
+            pref = ""
+            cursor = await self.connection.execute("SELECT prefer FROM user WHERE id = ?", (idCreditor,))
+            prefer = await cursor.fetchone()
+            if prefer[0] is not None:
+                pref = f". Ses moyens de paiments préféré sont les suivants : {prefer[0]}"
+            res += f"{memberDebtor.mention if memberDebtor is not None else debtor[0]} doit rembourser {amount} euros à {memberCreditor.mention if memberCreditor is not None else creditor[0]}{pref}\n"
+
         return await interaction.response.send_message(f"{res}")
     
     ###################################################### DELETE ######################################################
@@ -238,7 +245,7 @@ class DB(commands.Cog):
             f"Résumé de la cagnotte \"{kitty_info[0]}\" :\n"
             f"- Créateur : {memberCreator.display_name if memberCreator is not None else creator[0]}\n"
             f"- Participation totale : {total_contrib}\n"
-            f"- Dépenses totales : {total_expenses}\n"
+            f"- Dépenses totales : {round(total_expenses,2)}\n"
             f"- Fonds restants : {kitty_info[1]}"
         )
         return await interaction.response.send_message(message)
@@ -283,8 +290,29 @@ class DB(commands.Cog):
             message += f"- {memberPseudo.display_name if memberPseudo is not None else pseudo[0]}: \"{object}\" à {amount} euros\n"
         return await interaction.response.send_message(message) 
     
+    ###################################################### KITTYPREFER ######################################################
+    @app_commands.command(name="kittyprefer", description="Add a preferred means of payment, or reset your list of preffered payment")
+    async def kittycloseto(self, interaction : discord.Interaction, prefer: str) -> discord.message:
+        idUser = await self.get_user_id(interaction.user.name)
+        if idUser is None: # Si l'utilisateur n'est pas enregistré
+            return await interaction.response.send_message(f"Avant d'utiliser les commandes de ce bot, veuillez vous enregistrer avec la commande /kittyaddme", ephemeral=True)
+        if prefer == "reset": # Reset les moyen de paiment préféré si l'utilisateur a entré "reset"
+            await self.connection.execute("UPDATE user SET prefer = ? WHERE id = ?", (None, idUser[0]))
+            await self.connection.commit()
+            return await interaction.response.send_message("Votre préférence a été réinitialisée", ephemeral=True)
+        # Récupération du champs prefer
+        cursor = await self.connection.execute("SELECT prefer FROM user WHERE id = ?", (idUser[0],))
+        currPref = await cursor.fetchone()
+        if currPref[0] is not None: # Si il y'a déjà du texte
+            newPref = f"{currPref[0]}, {prefer}"
+        else: # Si le champs est vide
+            newPref = prefer
+        await self.connection.execute("UPDATE user SET prefer = ? WHERE id = ?", (newPref, idUser[0]))
+        await self.connection.commit()
+        return await interaction.response.send_message(f"Votre préférence a été mise à jour", ephemeral=True)
+
     ###################################################### KITTYME ######################################################
-    @app_commands.command(name="kittyme", description="Show all the kitty you participate in")
+    @app_commands.command(name="kittyme", description="Show all the kitty you participate in, and your preffered means of payment")
     async def kittyme(self, interaction : discord.Interaction) -> discord.message:
         idUser = await self.get_user_id(interaction.user.name)
         if idUser is None: # Si l'utilisateur n'est pas enregistré
@@ -293,12 +321,16 @@ class DB(commands.Cog):
         kitty_share = await cursor.fetchall()
         cursor = await self.connection.execute("SELECT name, channelName FROM kitty WHERE idCreator = ? AND channelName NOT LIKE '%:%'", idUser)
         kitty_create = await cursor.fetchall()
+        # Récupérer le(s) moyen de paiement préféré de l'utilisateur
+        cursor = await self.connection.execute("SELECT prefer FROM user WHERE id = ?", (idUser[0],))
+        prefer = await cursor.fetchone()
         # Affichage
         message = f"Vous apparaissez dans les cagnottes suivantes :\n"
         for name, channel in kitty_create:
             message += f"- Vous avez créé la cagnotte \"{name}\" sur le channel \"{channel}\"\n"
         for name, channel in kitty_share:
             message += f"- Vous participez à la cagnotte \"{name}\" sur le channel \"{channel}\"\n"
+        message += f"Vos moyens de paiements préférés sont : {prefer[0] if prefer[0] is not None else ""}\n"
         return await interaction.response.send_message(message, ephemeral=True) 
 
     ###################################################### KITTYCLOSETO ######################################################
@@ -340,13 +372,13 @@ class DB(commands.Cog):
     @app_commands.command(name="kittyhelp", description="Display help to use the bot")
     async def kittyhelp(self, interaction : discord.Interaction) -> discord.message:
         message = f"# Ce bot permet de créer et gérer des cagnottes #\n" 
-        message += f"Dans un premier temps, enregistrez vous avec la commande : ```/kittyaddme```vous aurez ensuite accès aux commandes suivantes :\n\n"
+        message += f"Dans un premier temps, enregistrez vous avec la commande : ```/kittyaddme (prefer)```vous aurez ensuite accès aux commandes suivantes. Vous pouvez optionnellement ajouter vos moyens de paiments préférés au passage.\n\n"
         message += f"```/createkitty [kitty_name]```"
         message += f"Permet de créer une cagnotte en lui donnant un nom. Le bot renvoie un message pour confirmer la création de la cagnotte, ou pour indiquer qu’elle n’a pas pu être créée.\n\n"
-        message += f"```/participate [kitty_name] [amount]```"
-        message += f"Permet de participer à un cagnotte en indiquant le nom de la cagnotte et le montant que l’on souhaite. Il est possible de diminuer sa participation en entrant une valeur négative, sauf si l’argent a déjà été dépensée. Le bot renvoie un message pour préciser si la participation a été validée ou invalidée.\n\n"
+        message += f"```/participate [kitty_name] [amount] (other)```"
+        message += f"Permet de participer à un cagnotte en indiquant le nom de la cagnotte et le montant que l’on souhaite. Il est possible de diminuer sa participation en entrant une valeur négative, sauf si l’argent a déjà été dépensée. Il est possible d'ajouter une participation pour une personne exterieure en remplissant le champs (other) si on est le créateur de la cagnotte. Le bot renvoie un message pour préciser si la participation a été validée ou invalidée.\n\n"
         message += f"```/purchase [kitty_name] [object] [amount]```"
-        message += f"Permet d’ajouter une dépense à une cagnotte, en précisant le nom de la cagnotte, l’objet de la dépense ainsi que son montant. Le bot renvoie un message pour préciser si la dépense a été validée ou invalidée.\n\n"
+        message += f"Permet d’ajouter une dépense à une cagnotte, en précisant le nom de la cagnotte, l’objet de la dépense ainsi que son montant. Il est possible d'ajouter une dépense pour une personne exterieure en remplissant le champs (other) si on est le créateur de la cagnotte. Le bot renvoie un message pour préciser si la dépense a été validée ou invalidée.\n\n"
         message += f"```/calculate [kitty_name]```"
         message += f"Permet de calculer et d’afficher les transactions minimum à faire pour que les participant d’un cagnotte donnée se remboursent.\n\n"
         message += f"```/kittydelete [kitty_name]```"
@@ -357,8 +389,10 @@ class DB(commands.Cog):
         message += f"Affiche chaque participation à une cagnotte donnée (participant et montant).\n\n"
         message += f"```/showpurchase [kitty_name]```"
         message += f"Affiche les dépenses d’une cagnotte donnée (acheteur, objet et montant).\n\n"
+        message += f"```/kittyprefer [prefer]```"
+        message += f"Permet d'ajouter un moyen de paiment préféré à l'utilisateur, si le mot \"reset\" entré dans le champs [prefer], les moyens de paiments de l'utilisateur sont réinitialisés.\n\n"
         message += f"```/kittyme```"
-        message += f"Affiche toutes les cagnottes créée par l’utilisateur, ainsi que toutes les cagnottes auxquelles il a participé (l’utilisateur est le seul à voir la réponse du bot).\n\n"
+        message += f"Affiche toutes les cagnottes créée par l’utilisateur, toutes les cagnottes auxquelles il a participé ainsi que ses moyens de paiements préférés (l’utilisateur est le seul à voir la réponse du bot).\n\n"
         message += f"```/kittycloseto```"
         message += f"A venir..."
         return await interaction.response.send_message(message, ephemeral=True)
