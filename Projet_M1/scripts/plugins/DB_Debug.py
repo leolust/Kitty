@@ -83,5 +83,15 @@ class DB_temp(commands.Cog):
             result_str += f"User1: {row[0]}, User2: {row[1]}\n"
         return await interaction.response.send_message(f"Contenu de la table closeto:\n{result_str}", ephemeral=True)
 
+    ###################################################### SQL injection ######################################################
+
+    @app_commands.command(name='sql_injection', description='Permet d entrer directement une requete SQL')
+    async def sql_injection(self, interaction: discord.Interaction, requete : str) -> discord.Message:
+        if interaction.user.name != my_pseudo:
+            return await interaction.response.send_message("Vous n'avez pas les droits pour cette commande")
+        cursor = await self.connection.execute(requete)
+        await self.connection.commit()
+        return await interaction.response.send_message(cursor, ephemeral=True)
+
 async def setup(bot : commands.Bot) -> None:
         await bot.add_cog(DB_temp(bot, await aiosqlite.connect('Kitty.db')), guild=discord.Object(id=serv_id))

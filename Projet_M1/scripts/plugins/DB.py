@@ -6,6 +6,7 @@ import sqlite3
 from collections import defaultdict
 
 import repayment
+from plugins.classVue import VueKitty
 
 from dotenv import load_dotenv
 import os
@@ -139,14 +140,14 @@ class DB(commands.Cog):
         if isInShare is None: # Si l'utilisateur ne participe pas à la cagnotte
             return await interaction.response.send_message("Il est impossible de dépenser pour une cagnotte à laquel nous n'avons pas participé")
         try:
-            # Insertion de l'achat
-            await self.connection.execute("""
-            INSERT INTO purchase (idKitty, idUser, amount, object) VALUES (?, ?, ?, ?)
-            """, (idKitty[0], idUser[0], amount, object))
             # Mise à jour de la cagnotte
             await self.connection.execute("""
             UPDATE kitty SET funds = ROUND(funds - ?, 2) WHERE id = ?
             """, (amount, idKitty[0]))
+            # Insertion de l'achat
+            await self.connection.execute("""
+            INSERT INTO purchase (idKitty, idUser, amount, object) VALUES (?, ?, ?, ?)
+            """, (idKitty[0], idUser[0], amount, object))
             await self.connection.commit()
         except sqlite3.IntegrityError as e:
             return await interaction.response.send_message("Action Impossible, vérifiez la cohérence de votre commande (exemple : fonds insuffisants)")
@@ -370,32 +371,42 @@ class DB(commands.Cog):
     
     ###################################################### KITTYHELP ######################################################
     @app_commands.command(name="kittyhelp", description="Display help to use the bot")
-    async def kittyhelp(self, interaction : discord.Interaction) -> discord.message:
-        message = f"# Ce bot permet de créer et gérer des cagnottes #\n" 
-        message += f"Dans un premier temps, enregistrez vous avec la commande : ```/kittyaddme (prefer)```vous aurez ensuite accès aux commandes suivantes. Vous pouvez optionnellement ajouter vos moyens de paiments préférés au passage.\n\n"
-        message += f"```/createkitty [kitty_name]```"
-        message += f"Permet de créer une cagnotte en lui donnant un nom. Le bot renvoie un message pour confirmer la création de la cagnotte, ou pour indiquer qu’elle n’a pas pu être créée.\n\n"
-        message += f"```/participate [kitty_name] [amount] (other)```"
-        message += f"Permet de participer à un cagnotte en indiquant le nom de la cagnotte et le montant que l’on souhaite. Il est possible de diminuer sa participation en entrant une valeur négative, sauf si l’argent a déjà été dépensée. Il est possible d'ajouter une participation pour une personne exterieure en remplissant le champs (other) si on est le créateur de la cagnotte. Le bot renvoie un message pour préciser si la participation a été validée ou invalidée.\n\n"
-        message += f"```/purchase [kitty_name] [object] [amount]```"
-        message += f"Permet d’ajouter une dépense à une cagnotte, en précisant le nom de la cagnotte, l’objet de la dépense ainsi que son montant. Il est possible d'ajouter une dépense pour une personne exterieure en remplissant le champs (other) si on est le créateur de la cagnotte. Le bot renvoie un message pour préciser si la dépense a été validée ou invalidée.\n\n"
-        message += f"```/calculate [kitty_name]```"
-        message += f"Permet de calculer et d’afficher les transactions minimum à faire pour que les participant d’un cagnotte donnée se remboursent.\n\n"
-        message += f"```/kittydelete [kitty_name]```"
-        message += f"Permet de supprimer une cagnotte donnée si vous en êtes le créateur.\n\n"
-        message += f"```/showkitty [kitty_name]```"
-        message += f"Affiche les informations d’une cagnotte donnée. Son créateur, le total des participations, le total des dépenses, et les fonds restants.\n\n"
-        message += f"```/showshares [kitty_name]```"
-        message += f"Affiche chaque participation à une cagnotte donnée (participant et montant).\n\n"
-        message += f"```/showpurchase [kitty_name]```"
-        message += f"Affiche les dépenses d’une cagnotte donnée (acheteur, objet et montant).\n\n"
-        message += f"```/kittyprefer [prefer]```"
-        message += f"Permet d'ajouter un moyen de paiment préféré à l'utilisateur, si le mot \"reset\" entré dans le champs [prefer], les moyens de paiments de l'utilisateur sont réinitialisés.\n\n"
-        message += f"```/kittyme```"
-        message += f"Affiche toutes les cagnottes créée par l’utilisateur, toutes les cagnottes auxquelles il a participé ainsi que ses moyens de paiements préférés (l’utilisateur est le seul à voir la réponse du bot).\n\n"
-        message += f"```/kittycloseto```"
-        message += f"A venir..."
-        return await interaction.response.send_message(message, ephemeral=True)
-    
+    async def kittyhelp(self, interaction: discord.Interaction) -> discord.Message:
+        page1 = (
+            "# Ce bot permet de créer et gérer des cagnottes #\n" 
+            "Dans un premier temps, enregistrez vous avec la commande : ```/kittyaddme (prefer)```vous aurez ensuite accès aux commandes suivantes. Vous pouvez optionnellement ajouter vos moyens de paiments préférés au passage.\n\n"
+            "```/createkitty [kitty_name]```"
+            "Permet de créer une cagnotte en lui donnant un nom. Le bot renvoie un message pour confirmer la création de la cagnotte, ou pour indiquer qu’elle n’a pas pu être créée.\n\n"
+            "```/participate [kitty_name] [amount] (other)```"
+            "Permet de participer à un cagnotte en indiquant le nom de la cagnotte et le montant que l’on souhaite. Il est possible de diminuer sa participation en entrant une valeur négative, sauf si l’argent a déjà été dépensée. Il est possible d'ajouter une participation pour une personne exterieure en remplissant le champs (other) si on est le créateur de la cagnotte. Le bot renvoie un message pour préciser si la participation a été validée ou invalidée.\n\n"
+            "```/purchase [kitty_name] [object] [amount]```"
+            "Permet d’ajouter une dépense à une cagnotte, en précisant le nom de la cagnotte, l’objet de la dépense ainsi que son montant. Il est possible d'ajouter une dépense pour une personne exterieure en remplissant le champs (other) si on est le créateur de la cagnotte. Le bot renvoie un message pour préciser si la dépense a été validée ou invalidée.\n\n"
+            "```/calculate [kitty_name]```"
+            "Permet de calculer et d’afficher les transactions minimum à faire pour que les participant d’un cagnotte donnée se remboursent.\n\n"
+        )
+        page2 = (
+            "# Aide Kitty Bot - Page 2 #\n\n"
+            "```/kittydelete [kitty_name]```"
+            "Permet de supprimer une cagnotte donnée si vous en êtes le créateur.\n\n"
+            "```/showkitty [kitty_name]```"
+            "Affiche les informations d’une cagnotte donnée. Son créateur, le total des participations, le total des dépenses, et les fonds restants.\n\n"
+            "```/showshares [kitty_name]```"
+            "Affiche chaque participation à une cagnotte donnée (participant et montant).\n\n"
+            "```/showpurchase [kitty_name]```"
+            "Affiche les dépenses d’une cagnotte donnée (acheteur, objet et montant).\n\n"
+            "```/kittyprefer [prefer]```"
+            "Permet d'ajouter un moyen de paiment préféré à l'utilisateur, si le mot \"reset\" entré dans le champs [prefer], les moyens de paiments de l'utilisateur sont réinitialisés.\n\n"
+        )
+        page3 = (
+            "# Aide Kitty Bot - Page 3 #\n\n"
+            "```/kittyme```"
+            "Affiche toutes les cagnottes créée par l’utilisateur, toutes les cagnottes auxquelles il a participé ainsi que ses moyens de paiements préférés (l’utilisateur est le seul à voir la réponse du bot).\n\n"
+            "```/kittycloseto```"
+            "A venir..."
+        )
+        pages = [page1, page2, page3]
+        vue = VueKitty(pages) # Créer une vue avec navigation
+        await interaction.response.send_message(pages[0], view=vue, ephemeral=True)
+
 async def setup(bot : commands.Bot) -> None:
         await bot.add_cog(DB(bot, await aiosqlite.connect('Kitty.db')), guild=discord.Object(id=serv_id))
