@@ -67,7 +67,7 @@ class DB_temp(commands.Cog):
         rows = await cursor.fetchall()
         result_str = ""
         for row in rows:
-            result_str += f"Id: {row[0]}, Pseudo: {row[1]}, Prefer: {row[2]}\n"
+            result_str += f"Id: {row[0]}, Pseudo: {row[1]}, Prefer: {row[2]}, MinAction: {row[3]}\n"
         return await interaction.response.send_message(f"Contenu de la table user:\n{result_str}", ephemeral=True)
     
     ###################################################### CLOSETO ######################################################

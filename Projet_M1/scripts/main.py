@@ -58,7 +58,8 @@ async def create_table_User(connection : aiosqlite.Connection) -> None:
     CREATE TABLE IF NOT EXISTS user (
     id INTEGER PRIMARY KEY,
     pseudo VARCHAR(35),
-    prefer TEXT
+    prefer TEXT,
+    minAction INTEGER DEFAULT 1
     );
     """)
     await connection.commit()

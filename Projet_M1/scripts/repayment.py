@@ -24,7 +24,8 @@ def calculate_real_contrib(rest, sorted_contrib):
             sorted_contrib[contributor] -= saving
     return sorted_contrib
 
-def calculate_transactions(real_expenses):
+def calculate_transactions(real_expenses, diclose):
+    cost = 0
     # Trie des dépenses réelles 
     sorted_transactions = sorted(real_expenses.items(), key=lambda x: x[1])
     transactions = []
@@ -37,6 +38,11 @@ def calculate_transactions(real_expenses):
         due = min(-creditor_amount, debtor_amount)
         # Ajout d'une transaction à la liste des transactions finale
         transactions.append((debtor, creditor, round(due, 2)))
+        # Ajout du cout de la transaction
+        if debtor in diclose:
+            cost += 4 if creditor in diclose[debtor] else 10
+        else:
+            cost += 10
         # Retrait du montant de la transaction
         sorted_transactions[i] = (creditor, round(creditor_amount + due, 2))
         sorted_transactions[j] = (debtor, round(debtor_amount - due, 2))
@@ -46,9 +52,13 @@ def calculate_transactions(real_expenses):
         # Si une personne a remboursé sa dette, on passe à la suivante
         if sorted_transactions[j][1] == 0:
             j -= 1
-    return transactions
+    return cost, transactions
 
-def repayment(contributions, expenses):
+def transac_with_friends():
+    pass
+    
+
+def repayment(contributions, expenses, diclose):
     # Trier les contributions
     sorted_contrib = dict(sorted(contributions.items(), key=lambda item: item[1], reverse=True))
     # Calculer les contributions réelles
@@ -56,4 +66,6 @@ def repayment(contributions, expenses):
     # Calculer les dettes
     real_expenses = {k: real_contrib.get(k, 0) - expenses.get(k, 0) for k in set(real_contrib) | set(expenses)}
     # Calculer les transactions
-    return calculate_transactions(real_expenses)
+    minAction = calculate_transactions(real_expenses, diclose)
+    print("Le cout de minAction est de:", minAction[0])
+    return minAction[1]

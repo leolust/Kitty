@@ -1,0 +1,3 @@
+une transaction = 10
+rembourser un proche (en mode actionMin) = 8		(car c'est mieux mais leur riorité c'est le moins de transactions)
+rembourser un proche (en mode proche) = 4

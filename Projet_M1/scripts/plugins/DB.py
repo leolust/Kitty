@@ -35,14 +35,14 @@ class DB(commands.Cog):
         return await cursor.fetchone()
     
     ###################################################### ADDME ######################################################
-    @app_commands.command(name="kittyaddme", description="Add you as a kitty user (Optionally, add a preferred means of payment)")
-    async def kittyaddme(self, interaction : discord.Interaction, prefer : str = None) -> discord.message:
+    @app_commands.command(name="kittyaddme", description="Add you as a kitty user. (Use /kittyhelp for a detailed description and guidance on commands.)")
+    async def kittyaddme(self, interaction : discord.Interaction, prefer : str = None, min_action : bool = True) -> discord.message:
         idUser = await self.get_user_id(interaction.user.name)
         if idUser is not None:
             return await interaction.response.send_message(f"Vous êtes déjà enregistré")
         await self.connection.execute("""
-        INSERT INTO user (pseudo, prefer) VALUES (?, ?)
-        """, (interaction.user.name, prefer)
+        INSERT INTO user (pseudo, prefer, minAction) VALUES (?, ?, ?)
+        """, (interaction.user.name, prefer, min_action)
         )
         await self.connection.commit()
         return await interaction.response.send_message(f"{interaction.user.mention} vous êtes enregistré comme utilisateur de ce bot, vous pouvez désormais utiliser toutes ses fonctionnalitées")
@@ -177,8 +177,16 @@ class DB(commands.Cog):
         expenses = defaultdict(float)
         for pseudo, amount in BDDexpenses:
             expenses[pseudo] += amount
+        cursor = await self.connection.execute("SELECT user1, user2 FROM closeto")
+        closelist = await cursor.fetchall()
+        diclose = {}
+        for a, b in closelist:
+            if a not in diclose:
+                diclose[a] = [b]
+            else:
+                diclose.append(b)
         # Calculer les transactions
-        repayments = repayment.repayment(contributions, expenses)
+        repayments = repayment.repayment(contributions, expenses, diclose)
         # Afficher les transactions
         res = f"Voici les transactions à effectuer pour la cagnotte \"{kitty_name}\" :\n"
         for idDebtor, idCreditor, amount in repayments:
@@ -374,7 +382,7 @@ class DB(commands.Cog):
     async def kittyhelp(self, interaction: discord.Interaction) -> discord.Message:
         page1 = (
             "# Ce bot permet de créer et gérer des cagnottes #\n" 
-            "Dans un premier temps, enregistrez vous avec la commande : ```/kittyaddme (prefer)```vous aurez ensuite accès aux commandes suivantes. Vous pouvez optionnellement ajouter vos moyens de paiments préférés au passage.\n\n"
+            "Dans un premier temps, enregistrez vous avec la commande : ```/kittyaddme (prefer) (minAction)```vous aurez ensuite accès aux commandes suivantes. Vous pouvez optionnellement ajouter vos moyens de paiments préférés, puis indiquez si vous préférez rembourser vos proches plutot que prioriser le nombre de transactions minimum.\n\n"
             "```/createkitty [kitty_name]```"
             "Permet de créer une cagnotte en lui donnant un nom. Le bot renvoie un message pour confirmer la création de la cagnotte, ou pour indiquer qu’elle n’a pas pu être créée.\n\n"
             "```/participate [kitty_name] [amount] (other)```"
