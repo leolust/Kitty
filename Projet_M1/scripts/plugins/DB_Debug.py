@@ -23,46 +23,46 @@ class DB_temp(commands.Cog):
     @app_commands.command(name="tablekitty", description="Affiche le contenu de la table kitty")
     async def table_Kitty(self, interaction: discord.Interaction) -> discord.Message:
         if interaction.user.name != my_pseudo:
-            return await interaction.response.send_message("Vous n'avez pas les droits pour cette commande")
+            return await interaction.response.send_message("Vous n'avez pas les droits pour cette commande", ephemeral=True)
         cursor = await self.connection.execute("SELECT * FROM kitty")
         rows = await cursor.fetchall()
         result_str = ""
         for row in rows:
             result_str += f"ID: {row[0]}, Name: {row[1]}, Funds: {row[2]}, Creator: {row[3]}, Channel: {row[4]}\n"
-        return await interaction.response.send_message(f"Contenu de la table kitty:\n{result_str}")
+        return await interaction.response.send_message(f"Contenu de la table kitty:\n{result_str}", ephemeral=True)
 
     ###################################################### SHARES ######################################################
 
     @app_commands.command(name='tableshares', description='affiche le contenue de la table share')
     async def table_shares(self, interaction: discord.Interaction) -> discord.Message:
         if interaction.user.name != my_pseudo:
-            return await interaction.response.send_message("Vous n'avez pas les droits pour cette commande")
+            return await interaction.response.send_message("Vous n'avez pas les droits pour cette commande", ephemeral=True)
         cursor = await self.connection.execute("SELECT * FROM share")
         rows = await cursor.fetchall()
         result_str = ""
         for row in rows:
             result_str += f"IdKitty: {row[0]}, Pseudo: {row[1]}, Amount: {row[2]}\n"
-        return await interaction.response.send_message(f"Contenu de la table share:\n{result_str}")
+        return await interaction.response.send_message(f"Contenu de la table share:\n{result_str}", ephemeral=True)
 
     ###################################################### PURCHASE ######################################################
 
     @app_commands.command(name='tablepurchase', description='affiche le contenue de la table purchase')
     async def table_purchases(self, interaction: discord.Interaction) -> discord.Message:
         if interaction.user.name != my_pseudo:
-            return await interaction.response.send_message("Vous n'avez pas les droits pour cette commande")
+            return await interaction.response.send_message("Vous n'avez pas les droits pour cette commande", ephemeral=True)
         cursor = await self.connection.execute("SELECT * FROM purchase")
         rows = await cursor.fetchall()
         result_str = ""
         for row in rows:
             result_str += f"IdPurchase: {row[0]}, IdKitty: {row[1]}, Pseudo: {row[2]}, Amount: {row[3]}, Object: {row[4]}\n"
-        return await interaction.response.send_message(f"Contenu de la table purchase:\n{result_str}")
+        return await interaction.response.send_message(f"Contenu de la table purchase:\n{result_str}", ephemeral=True)
 
     ###################################################### USER ######################################################
     
     @app_commands.command(name='tableuser', description='Affiche le contenu de la table user')
     async def table_user(self, interaction: discord.Interaction) -> discord.Message:
         if interaction.user.name != my_pseudo:
-            return await interaction.response.send_message("Vous n'avez pas les droits pour cette commande")
+            return await interaction.response.send_message("Vous n'avez pas les droits pour cette commande", ephemeral=True)
         cursor = await self.connection.execute("SELECT * FROM user")
         rows = await cursor.fetchall()
         result_str = ""
@@ -75,7 +75,7 @@ class DB_temp(commands.Cog):
     @app_commands.command(name='tablecloseto', description='Affiche le contenu de la table closeto')
     async def table_closeto(self, interaction: discord.Interaction) -> discord.Message:
         if interaction.user.name != my_pseudo:
-            return await interaction.response.send_message("Vous n'avez pas les droits pour cette commande")
+            return await interaction.response.send_message("Vous n'avez pas les droits pour cette commande", ephemeral=True)
         cursor = await self.connection.execute("SELECT * FROM closeto")
         rows = await cursor.fetchall()
         result_str = ""
@@ -88,7 +88,7 @@ class DB_temp(commands.Cog):
     @app_commands.command(name='sql_injection', description='Permet d entrer directement une requete SQL')
     async def sql_injection(self, interaction: discord.Interaction, requete : str) -> discord.Message:
         if interaction.user.name != my_pseudo:
-            return await interaction.response.send_message("Vous n'avez pas les droits pour cette commande")
+            return await interaction.response.send_message("Vous n'avez pas les droits pour cette commande", ephemeral=True)
         cursor = await self.connection.execute(requete)
         await self.connection.commit()
         return await interaction.response.send_message(cursor, ephemeral=True)

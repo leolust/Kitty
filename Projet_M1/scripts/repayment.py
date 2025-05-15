@@ -62,56 +62,32 @@ def transac_with_friends(creditors, debtors, diclose):
     debtor_done = set()
     for debtor, debt_amount in debtors_copy:  
         if debtor not in debtor_done and debtor in diclose:
-            # Filtrer les amis qui sont créditeurs
-            friends_creditors = [(friend, credits_dict.get(friend, 0)) for friend in diclose[debtor] if friend in credits_dict and credits_dict.get(friend, 0) > 0]
-            
-            # Vérifier si les amis peuvent absorber toute la dette
+            # Récupérer les créditeurs qui sont parmis les proches de notre debiteur
+            friends_creditors = []
+            for user in credits_dict:
+                if user in diclose[debtor]:
+                    friends_creditors.append((user, credits_dict[user]))
+            # Si la dette est absorbable par les proches, on le fait
             if sum(amount for _, amount in friends_creditors) >= debt_amount:
-                # Essayer de rembourser uniquement les amis
-                remaining_debt = debt_amount
-                potential_transactions = []
-                
-                # Copie temporaire des crédits pour simuler
-                temp_credits = dict(credits_dict)
-                
-                # Trier les amis créditeurs par montant (pour respecter l'algorithme original)
-                friends_creditors.sort(key=lambda x: x[1])
-                
+                friends_creditors.sort(key=lambda x: x[1], reverse=True)
                 for friend, credit_amount in friends_creditors:
                     if credit_amount > 0:
-                        transfer_amount = min(remaining_debt, credit_amount)
-                        transfer_amount = round(transfer_amount, 2)
-                        
-                        if transfer_amount > 0:
-                            potential_transactions.append((debtor, friend, transfer_amount))
-                            temp_credits[friend] = round(temp_credits[friend] - transfer_amount, 2)
-                            remaining_debt = round(remaining_debt - transfer_amount, 2)
-                            
-                            if remaining_debt <= 0.01:  # Dette soldée
-                                break
-                
-                # Si nous pouvons solder la dette, effectuer les transactions
-                if remaining_debt <= 0.01:
-                    for d, c, amount in potential_transactions:
-                        transactions.append((d, c, amount))
-                        cost += 4  # Coût réduit pour les amis
-                        print(f"Transaction amicale: {d} -> {c}: {amount}€ (Coût: 4€)")
-                        
-                        # Mettre à jour les montants
-                        credits_dict[c] = round(credits_dict[c] - amount, 2)
-                        debts_dict[d] = round(debts_dict[d] - amount, 2)
-                    
-                    debtor_done.add(debtor)
-    
+                        transfer_amount = round(min(debt_amount, credit_amount), 2)
+                        transactions.append((debtor, friend, transfer_amount))
+                        cost += 4 # Coût réduit pour les proches
+                        credits_dict[friend] = round(credits_dict[friend] - transfer_amount, 2)
+                        debts_dict[debtor] = round(debts_dict[debtor] - transfer_amount, 2)
+                        debt_amount = round(debt_amount - transfer_amount, 2)
+                        if debt_amount <= 0:
+                            break
+                debtor_done.add(debtor)
     # Reconstruire les listes des créditeurs et débiteurs restants
     remaining_creditors = [(person, amount) for person, amount in credits_dict.items() if amount > 0.01]
     remaining_debtors = [(person, amount) for person, amount in debts_dict.items() if amount > 0.01 and person not in debtor_done]
-    
-    # Traiter les dettes restantes avec l'algorithme standard
-    remaining_cost, remaining_transactions = calculate_transactions(remaining_creditors, remaining_debtors, diclose)
-    cost += remaining_cost
-    transactions.extend(remaining_transactions)
-    return cost, transactions
+    # Faire le système de transactions minimal pour les personnes restantes
+    cost_2, transactions_2 = calculate_transactions(remaining_creditors, remaining_debtors, diclose)
+    transactions.extend(transactions_2)
+    return cost + cost_2, transactions
 
 def repayment(contributions, expenses, diclose):
     sorted_contrib = dict(sorted(contributions.items(), key=lambda item: item[1], reverse=True))
