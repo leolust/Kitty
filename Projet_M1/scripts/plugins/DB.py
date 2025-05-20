@@ -301,7 +301,7 @@ class DB(commands.Cog):
     
     ###################################################### KITTYPREFER ######################################################
     @app_commands.command(name="kittyprefer", description="Add a preferred means of payment, or reset your list of preffered payment")
-    async def kittycloseto(self, interaction : discord.Interaction, prefer: str) -> discord.message:
+    async def kittyprefer(self, interaction : discord.Interaction, prefer: str) -> discord.message:
         idUser = await self.get_user_id(interaction.user.name)
         if idUser is None: # Si l'utilisateur n'est pas enregistré
             return await interaction.response.send_message(f"Avant d'utiliser les commandes de ce bot, veuillez vous enregistrer avec la commande /kittyaddme", ephemeral=True)
